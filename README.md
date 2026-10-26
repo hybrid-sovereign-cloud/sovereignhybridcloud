@@ -23,6 +23,75 @@ reconciled, all exported back to Git.
 
 ---
 
+## Demo in three clicks (RHDP)
+
+The fastest way to see the platform is on **Red Hat Demo Platform**. Order an
+OpenShift base cluster, wire this repo as the GitOps source, and zero-touch
+provisioning installs Hybrid Sovereign Cloud for you.
+
+### 1. Order the catalog item
+
+Open the RHDP catalog and find **Field Sourced Content – OpenShift Base**.
+It ships OpenShift with GitOps already installed — you bring the Helm /
+manifests / Ansible, and OpenShift GitOps deploys it.
+
+![Order Field Sourced Content – OpenShift Base from the RHDP catalog](docs/img/catalog.png)
+
+Click **Order**. Prefer **CNV** (OpenShift Virtualization) for the cheapest /
+fastest sandbox (~5–15 minutes). Use AWS only when you need AWS integration.
+
+### 2. Configure the cluster
+
+Use these settings for a demo-ready hub (AAP + OpenShift Virtualization on a
+multi-node CNV cluster):
+
+| Setting | Value |
+|---------|--------|
+| Cloud Provider | `cnv` |
+| cluster_size | `multinode` |
+| OpenShift Version | `4.22` |
+| OpenShift Worker count | `2` |
+| OpenShift Worker memory | `128Gi` |
+| OpenShift Worker CPU | `32` |
+| Base workloads | **OpenShift Virtualization** ✓ · **Ansible Automation Platform** ✓ |
+
+![Catalog item settings: CNV multinode with AAP and OpenShift Virtualization](docs/img/setting.png)
+
+### 3. Point GitOps at this repo (ZTP)
+
+In the **GitOps** section, check **Existing Gitops Repo?** and fill in:
+
+| Field | Value |
+|-------|--------|
+| GitOps Repo | `https://github.com/hybrid-sovereign-cloud/sovereignhybridcloud` |
+| GitOps Revision | `main` |
+| GitOps Path | `gitops` |
+| Private GitOps repo? | unchecked (public) |
+
+![GitOps form: repo URL, revision main, path gitops](docs/img/ztp.png)
+
+Submit the order. RHDP provisions the cluster, ArgoCD syncs `gitops/` on
+`main`, and **zero-touch provisioning** brings the platform up in dependency
+waves — operators, Vault, Quay, fabric, sample tenant, dashboards.
+
+Watch progress after you have cluster access:
+
+```bash
+oc get applications -n openshift-gitops -w
+```
+
+When Applications are Synced / Healthy:
+
+```bash
+oc get deploy -n sovereign-cloud             # one operator per kind
+oc get entity,cloudinfrastructure -A         # worked example tenant
+oc get iaac -A                               # config-as-code reporting ready
+```
+
+Full wave map and debug loop: **[docs/getting-started/ztp.md](docs/getting-started/ztp.md)**.
+
+---
+
 ## Why it exists
 
 Sovereignty is usually sold as a location. In practice it is three harder
@@ -55,7 +124,7 @@ OpenStack site can arrive six months later, or never.
 | | |
 |---|---|
 | **One API** | ~26 CRDs in `hybridsovereign.redhat/v1alpha1`, one Ansible operator per kind |
-| **Zero-touch provisioning** | Point ArgoCD at `gitops/` once; 18 applications sync in dependency waves |
+| **Zero-touch provisioning** | Point ArgoCD at `gitops/` once; applications sync in dependency waves |
 | **Identity that composes** | Keycloak groups as first-class CRs, referenced by name from every other kind |
 | **Hybrid networking** | EVPN/VXLAN fabric joining hub VMs, OpenStack VMs and cloud projects into per-tenant VRFs |
 | **Cluster fleet** | Spoke OpenShift on OpenStack, AWS or HyperShift-on-hub, via ACM |
@@ -65,41 +134,29 @@ OpenStack site can arrive six months later, or never.
 
 ---
 
-## Getting started
+## After the demo cluster is up
 
-### Day 0 — once per hub
+### Learn by building a tenant
 
-1. **Adopt the prerequisites.** These are never installed or uninstalled by
-   this repo: OpenShift GitOps, AAP Controller, RHBK/Keycloak, ODF/NooBaa,
-   CNV, cert-manager.
+The [**workshop**](docs/workshop/README.md) walks the whole API in dependency
+order — create an `Entity`, then hang identity, teams, secrets, clouds, a
+cluster and a stretched network off it, and finish by watching all of it
+appear in Git. Labs 0–5 take under an hour; cluster installs dominate the rest.
+
+### Day 0 — bring-up without RHDP
+
+If you already have an OpenShift hub:
+
+1. **Adopt the prerequisites.** Never installed or uninstalled by this repo:
+   OpenShift GitOps, AAP Controller, RHBK/Keycloak, ODF/NooBaa, CNV,
+   cert-manager.
 2. **Create Day-0 secrets** in `sovereign-secrets`. Never commit credentials —
    see [docs/getting-started/lab-config.md](docs/getting-started/lab-config.md).
 3. **Point ArgoCD at this repo:** path `gitops`, revision `main`.
 4. **Sync once.** After that it is Git only — no mid-rollout `oc apply` for
    platform config.
 
-```bash
-oc get applications -n openshift-gitops -w
-```
-
-### Verify
-
-```bash
-oc get applications -n openshift-gitops      # all Synced / Healthy
-oc get deploy -n sovereign-cloud             # one operator per kind
-oc get entity,cloudinfrastructure -A         # the worked example tenant
-oc get iaac -A                               # config-as-code reporting ready
-```
-
 Full detail: **[docs/getting-started](docs/getting-started/README.md)**.
-
-### Then learn it
-
-The [**workshop**](docs/workshop/README.md) walks the whole API in dependency
-order — you create an `Entity`, then hang identity, teams, secrets, clouds, a
-cluster and a stretched network off it, and finish by watching all of it
-appear in Git. Labs 0–5 take under an hour; the cluster installs dominate the
-rest.
 
 ---
 
@@ -257,6 +314,7 @@ path is only `gitops/`.**
 **[Start here → docs/README.md](docs/README.md)**
 
 - [Getting started](docs/getting-started/README.md) — stand up a hub
+- [ZTP waves](docs/getting-started/ztp.md) — what Argo syncs, in order
 - [Concepts](docs/concepts/README.md) — the model and the fabric design
 - [Workshop](docs/workshop/README.md) — learn it by building a tenant
 - [CRD reference](docs/reference/crds/README.md) — every field
